@@ -1,0 +1,389 @@
+# =============================================================================
+# Bill Processor — Entry Type Schema Definitions
+# =============================================================================
+# This file drives the ENTIRE system: extraction prompts, sheet routing,
+# row formatting, and validation. Adding a new entry type is as simple as
+# adding a new block here — zero code changes required.
+# =============================================================================
+
+# Columns shared by ALL entry types (always written first in every sheet row).
+common_columns:
+  - name: "Timestamp"
+    description: "Date & time of processing"
+    required: true
+  - name: "Entry Type"
+    description: "ERP entry classification"
+    required: true
+  - name: "Confidence"
+    description: "Extraction confidence — High / Medium / Low"
+    required: true
+  - name: "Supplier Name"
+    description: "Name of the supplier / party"
+    required: true
+  - name: "Supplier GSTIN"
+    description: "GSTIN of the supplier"
+    required: false
+  - name: "Bill Number"
+    description: "Bill or invoice number"
+    required: true
+  - name: "Bill Date"
+    description: "Date on the bill"
+    required: true
+  - name: "Total Amount"
+    description: "Net or gross total amount"
+    required: true
+  - name: "Currency"
+    description: "Currency code (default INR)"
+    required: false
+    default: "INR"
+  - name: "Source"
+    description: "Source channel"
+    required: false
+    default: "Telegram"
+  - name: "Image Reference"
+    description: "Telegram file ID of the source image"
+    required: false
+
+# Confidence scoring thresholds (based on field completeness percentage).
+confidence:
+  high_threshold: 80    # >= 80% of required fields filled
+  medium_threshold: 50  # >= 50% of required fields filled
+  # Below medium_threshold = Low
+
+# -----------------------------------------------------------------------------
+# Entry Type Definitions
+# -----------------------------------------------------------------------------
+# Each entry type has:
+#   - display_name:       Human-readable name (used in Telegram confirmation)
+#   - sheet_name:         Google Sheet worksheet name
+#   - keywords:           Hints for the LLM classifier
+#   - specific_columns:   Columns unique to this entry type
+# -----------------------------------------------------------------------------
+
+entry_types:
+  grey_purchase:
+    display_name: "Grey Purchase"
+    sheet_name: "Grey_Purchase_Bills"
+    keywords:
+      - "grey"
+      - "grey fabric"
+      - "grey purchase"
+      - "raw fabric"
+    specific_columns:
+      - name: "Fabric Type"
+        description: "Grey fabric description (e.g., DOT KNIT MILANGE)"
+        required: false
+      - name: "Quantity"
+        description: "Quantity in Meters or KG"
+        required: true
+      - name: "Rate"
+        description: "Unit rate"
+        required: true
+      - name: "Lot Number"
+        description: "Lot or order number"
+        required: false
+      - name: "No of Rolls (Taka)"
+        description: "Number of rolls / taka / pieces"
+        required: false
+      - name: "HSN Code"
+        description: "HSN code from the bill"
+        required: false
+      - name: "CGST Amount"
+        description: "Central GST amount"
+        required: false
+      - name: "SGST Amount"
+        description: "State GST amount"
+        required: false
+      - name: "IGST Amount"
+        description: "Integrated GST amount"
+        required: false
+      - name: "Discount"
+        description: "Discount amount as printed on the bill"
+        required: false
+      - name: "Freight"
+        description: "Freight / transport charges as printed on the bill"
+        required: false
+      - name: "Insurance"
+        description: "Insurance charges as printed on the bill"
+        required: false
+      - name: "Mill Delivery"
+        description: "Mill delivery charges as printed on the bill"
+        required: false
+      - name: "Broker Name"
+        description: "Name of the broker or agent (e.g., SHREE C.M)"
+        required: false
+
+  yarn_purchase:
+    display_name: "Yarn Purchase"
+    sheet_name: "Yarn_Purchase_Bills"
+    keywords:
+      - "yarn"
+      - "yarn purchase"
+      - "combed"
+      - "carded"
+    specific_columns:
+      - name: "Yarn Count"
+        description: "Yarn count (e.g., 30s, 40s)"
+        required: false
+      - name: "Yarn Type"
+        description: "Combed / Carded / Other"
+        required: false
+      - name: "Quantity (KG)"
+        description: "Weight in kilograms"
+        required: true
+      - name: "Rate per KG"
+        description: "Rate per kilogram"
+        required: true
+      - name: "HSN Code"
+        description: "HSN code from the bill"
+        required: false
+      - name: "CGST Amount"
+        description: "Central GST amount"
+        required: false
+      - name: "SGST Amount"
+        description: "State GST amount"
+        required: false
+      - name: "IGST Amount"
+        description: "Integrated GST amount"
+        required: false
+
+  finish_purchase:
+    display_name: "Finish Purchase"
+    sheet_name: "Finish_Purchase_Bills"
+    description: "Use for invoices, bills, AND internal ERP issue/transfer documents related to fabric processing. Includes job work charge bills, stock transfer issues, and process charge invoices."
+    keywords:
+      - "finish"
+      - "finished goods"
+      - "job work charges"
+      - "process charges"
+      - "dyeing charges"
+      - "knitting charges"
+      - "stock transfer"
+      - "issue manager"
+      - "issue for process"
+    specific_columns:
+      - name: "Process Type"
+        description: "Type of process (Dyeing, Knitting, Printing, etc.)"
+        required: false
+      - name: "Challan Number"
+        description: "Delivery challan number"
+        required: false
+
+      - name: "Item Name"
+        description: "Description of the item"
+        required: false
+      - name: "UQC"
+        description: "Unit of quantity (PCS, KGS, MTR)"
+        required: false
+      - name: "Lot Number"
+        description: "Lot or merge number"
+        required: false
+      - name: "Pcs (Taka)"
+        description: "Number of pieces / taka / rolls"
+        required: false
+      - name: "Quantity"
+        description: "Quantity in the unit specified"
+        required: true
+      - name: "Rate"
+        description: "Rate per unit"
+        required: true
+      - name: "HSN Code"
+        description: "HSN code"
+        required: false
+      - name: "CGST Amount"
+        description: "Central GST amount"
+        required: false
+      - name: "SGST Amount"
+        description: "State GST amount"
+        required: false
+      - name: "IGST Amount"
+        description: "Integrated GST amount"
+        required: false
+      - name: "Net Amount"
+        description: "Final net / invoice amount"
+        required: false
+
+  grn_job:
+    display_name: "GRN Entry - Job"
+    sheet_name: "GRN_Job_Entries"
+    description: "Use ONLY for documents showing goods being RECEIVED BACK from a job worker or processor. NOT for issuing goods or stock transfers."
+    keywords:
+      - "delivery challan"
+      - "goods receipt note"
+      - "inward challan"
+      - "job work receipt"
+      - "goods received"
+    specific_columns:
+      - name: "Job Number"
+        description: "Job work reference number"
+        required: false
+      - name: "Process Name"
+        description: "Process type (Dyeing / Knitting / Printing)"
+        required: false
+      - name: "Challan Number"
+        description: "Delivery challan reference"
+        required: false
+      - name: "Received Quantity"
+        description: "Quantity received"
+        required: true
+      - name: "Issued Quantity"
+        description: "Quantity originally issued"
+        required: false
+      - name: "Lot Number"
+        description: "Lot or merge number"
+        required: false
+
+  grn_process:
+    display_name: "GRN Entry - Process"
+    sheet_name: "GRN_Process_Entries"
+    description: "Use ONLY for documents showing processed goods being RECEIVED BACK from a processor. NOT for issuing goods, stock transfers, or purchase invoices."
+    keywords:
+      - "process receipt"
+      - "process challan"
+      - "inward process"
+      - "goods received from process"
+    specific_columns:
+      - name: "Receipt Id"
+        description: "GRN receipt reference"
+        required: false
+      - name: "Job Id"
+        description: "Linked job work ID"
+        required: false
+      - name: "Challan Number"
+        description: "Delivery challan reference"
+        required: false
+      - name: "Item Name"
+        description: "Name / description of item received"
+        required: false
+      - name: "Lot Number"
+        description: "Lot or merge number"
+        required: false
+      - name: "Issued Quantity"
+        description: "Quantity originally issued"
+        required: false
+      - name: "Received Quantity"
+        description: "Quantity actually received"
+        required: true
+
+  grn_process_rf:
+    display_name: "GRN Entry - Process RF"
+    sheet_name: "GRN_ProcessRF_Entries"
+    keywords:
+      - "grn"
+      - "process rf"
+      - "refinish"
+      - "reprocess"
+    specific_columns:
+      - name: "Receipt Id"
+        description: "GRN receipt reference"
+        required: false
+      - name: "Job Id"
+        description: "Linked job work ID"
+        required: false
+      - name: "Challan Number"
+        description: "Delivery challan reference"
+        required: false
+      - name: "Item Name"
+        description: "Name / description of item"
+        required: false
+      - name: "Lot Number"
+        description: "Lot or merge number"
+        required: false
+      - name: "Received Quantity"
+        description: "Quantity received"
+        required: true
+
+  grn_sewing:
+    display_name: "GRN Entry - Sewing"
+    sheet_name: "GRN_Sewing_Entries"
+    keywords:
+      - "grn"
+      - "sewing"
+      - "stitching"
+      - "garment"
+    specific_columns:
+      - name: "Style Number"
+        description: "Style or design reference"
+        required: false
+      - name: "Cut Number"
+        description: "Cut reference number"
+        required: false
+      - name: "Challan Number"
+        description: "Delivery challan reference"
+        required: false
+      - name: "Received Quantity"
+        description: "Quantity received"
+        required: true
+      - name: "Issued Quantity"
+        description: "Quantity originally issued"
+        required: false
+      - name: "Item Name"
+        description: "Description of garment / item"
+        required: false
+      - name: "Lot Number"
+        description: "Lot or merge number"
+        required: false
+
+  ledger_outstanding:
+    display_name: "Ledger & Outstanding"
+    sheet_name: "Ledger_Outstanding"
+    keywords:
+      - "ledger"
+      - "outstanding"
+      - "balance"
+      - "account statement"
+      - "tally"
+    specific_columns:
+      - name: "Party Name"
+        description: "Name of the party / account"
+        required: true
+      - name: "Opening Balance"
+        description: "Opening balance amount"
+        required: false
+      - name: "Debit Amount"
+        description: "Total debit"
+        required: false
+      - name: "Credit Amount"
+        description: "Total credit"
+        required: false
+      - name: "Closing Balance"
+        description: "Closing balance amount"
+        required: false
+      - name: "Outstanding Amount"
+        description: "Net outstanding"
+        required: false
+      - name: "Due Date"
+        description: "Payment due date"
+        required: false
+
+  general_entry:
+    display_name: "General Entry"
+    sheet_name: "General_Entries"
+    keywords:
+      - "general"
+      - "miscellaneous"
+    specific_columns:
+      - name: "Description"
+        description: "General description of the entry"
+        required: false
+      - name: "Quantity"
+        description: "Quantity if applicable"
+        required: false
+      - name: "Rate"
+        description: "Rate if applicable"
+        required: false
+      - name: "HSN Code"
+        description: "HSN code if present"
+        required: false
+      - name: "CGST Amount"
+        description: "Central GST amount"
+        required: false
+      - name: "SGST Amount"
+        description: "State GST amount"
+        required: false
+      - name: "IGST Amount"
+        description: "Integrated GST amount"
+        required: false
+      - name: "Net Amount"
+        description: "Final net amount"
+        required: false
