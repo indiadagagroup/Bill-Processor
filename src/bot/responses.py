@@ -6,6 +6,8 @@ Formats confirmation and error messages per SRS Section 6.1 and Section 7.
 
 from __future__ import annotations
 
+from telegram.helpers import escape_markdown
+
 from src.sheets.writer import WriteResult, DuplicateBillError
 
 
@@ -77,7 +79,8 @@ def build_error_message(error_detail: str = "") -> str:
         "Please try again or contact admin."
     )
     if error_detail:
-        message += f"\n\n_Debug: {error_detail}_"
+        escaped = escape_markdown(error_detail, version=1)
+        message += f"\n\n_Debug: {escaped}_"
     return message
 
 
