@@ -245,24 +245,27 @@ class BotHandlers:
 
         except DuplicateBillError as exc:
             logger.info("Duplicate bill from user %s: %s", user_id, str(exc))
-            await processing_msg.edit_text(
-                build_duplicate_message(exc),
-                parse_mode="Markdown",
-            )
+            text = build_duplicate_message(exc)
+            try:
+                await processing_msg.edit_text(text, parse_mode="Markdown")
+            except Exception:
+                await processing_msg.edit_text(text)
 
         except ExtractionError as exc:
             logger.error("Extraction failed for user %s: %s", user_id, str(exc))
-            await processing_msg.edit_text(
-                build_error_message(str(exc)),
-                parse_mode="Markdown",
-            )
+            text = build_error_message(str(exc))
+            try:
+                await processing_msg.edit_text(text, parse_mode="Markdown")
+            except Exception:
+                await processing_msg.edit_text(text)
 
         except SheetsClientError as exc:
             logger.error("Sheets write failed for user %s: %s", user_id, str(exc))
-            await processing_msg.edit_text(
-                build_error_message(str(exc)),
-                parse_mode="Markdown",
-            )
+            text = build_error_message(str(exc))
+            try:
+                await processing_msg.edit_text(text, parse_mode="Markdown")
+            except Exception:
+                await processing_msg.edit_text(text)
 
         except Exception as exc:
             logger.error(
@@ -271,10 +274,11 @@ class BotHandlers:
                 str(exc),
                 exc_info=True,
             )
-            await processing_msg.edit_text(
-                build_error_message("An unexpected error occurred."),
-                parse_mode="Markdown",
-            )
+            text = build_error_message("An unexpected error occurred.")
+            try:
+                await processing_msg.edit_text(text, parse_mode="Markdown")
+            except Exception:
+                await processing_msg.edit_text(text)
 
     async def _handle_unknown(
         self,
