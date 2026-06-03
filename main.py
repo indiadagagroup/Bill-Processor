@@ -55,20 +55,25 @@ def main() -> None:
         sys.exit(1)
 
     service_account_info = None
-    service_account_path = settings.service_account_path
+    service_account_path = None
     if settings.google_service_account_json.strip():
         try:
             service_account_info = json.loads(settings.google_service_account_json)
         except json.JSONDecodeError as exc:
             logger.error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON: %s", exc)
             sys.exit(1)
-    elif service_account_path and service_account_path.exists():
-        pass
+    elif settings.google_service_account_file:
+        service_account_path = settings.service_account_path
+        if not service_account_path or not service_account_path.exists():
+            logger.error(
+                "Service account file not found: %s",
+                service_account_path,
+            )
+            sys.exit(1)
     else:
         logger.error(
             "No service account provided. Set either GOOGLE_SERVICE_ACCOUNT_JSON "
-            "or GOOGLE_SERVICE_ACCOUNT_FILE (path: %s).",
-            service_account_path,
+            "or GOOGLE_SERVICE_ACCOUNT_FILE."
         )
         sys.exit(1)
 
