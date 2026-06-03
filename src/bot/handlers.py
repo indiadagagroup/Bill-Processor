@@ -13,6 +13,8 @@ Edge case handling:
 
 from __future__ import annotations
 
+import asyncio
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -200,7 +202,8 @@ class BotHandlers:
             )
 
             # Step 2: Extract data
-            bill_data = self._extractor.extract(
+            bill_data = await asyncio.to_thread(
+                self._extractor.extract,
                 image_bytes=bytes(image_bytes),
                 telegram_file_id=file_id,
                 mime_type=mime_type,
@@ -224,7 +227,7 @@ class BotHandlers:
                 return
 
             # Step 4: Write to Google Sheets (includes duplicate check)
-            result = self._writer.write(bill_data)
+            result = await asyncio.to_thread(self._writer.write, bill_data)
 
             # Step 5: Send confirmation
             await processing_msg.edit_text(

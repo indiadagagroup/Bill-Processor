@@ -1,8 +1,12 @@
 """
-Google Sheets API client wrapper.
+Sheets client.
 
 Uses gspread with service account authentication.
 Provides worksheet access and row operations.
+
+Supports two auth methods (in order of precedence):
+1.  GOOGLE_SERVICE_ACCOUNT_JSON — raw JSON string from env var (cloud-friendly)
+2.  GOOGLE_SERVICE_ACCOUNT_FILE — path to a local JSON file (backward-compatible)
 """
 
 from __future__ import annotations
@@ -32,20 +36,34 @@ class SheetsClient:
 
     def __init__(
         self,
-        service_account_path: Path,
-        spreadsheet_id: str,
+        service_account_path: Path | None = None,
+        service_account_info: dict[str, Any] | None = None,
+        spreadsheet_id: str = "",
     ) -> None:
         """Initialize the Sheets client.
 
         Args:
-            service_account_path: Path to the service account JSON.
+            service_account_path: Path to the service account JSON (optional).
+            service_account_info: Parsed service account JSON dict (optional).
             spreadsheet_id: Google Spreadsheet ID.
         """
         try:
-            credentials = Credentials.from_service_account_file(
-                str(service_account_path),
-                scopes=_SCOPES,
-            )
+            if service_account_info is not None:
+                credentials = Credentials.from_service_account_info(
+                    service_account_info,
+                    scopes=_SCOPES,
+                )
+            elif service_account_path is not None:
+                credentials = Credentials.from_service_account_file(
+                    str(service_account_path),
+                    scopes=_SCOPES,
+                )
+            else:
+                raise SheetsClientError(
+                    "No service account provided. "
+                    "Set either GOOGLE_SERVICE_ACCOUNT_JSON or "
+                    "GOOGLE_SERVICE_ACCOUNT_FILE."
+                )
             self._gc = gspread.authorize(credentials)
             self._spreadsheet_id = spreadsheet_id
             self._spreadsheet: gspread.Spreadsheet | None = None
@@ -53,6 +71,8 @@ class SheetsClient:
                 "SheetsClient initialized (spreadsheet_id=%s)",
                 spreadsheet_id,
             )
+        except SheetsClientError:
+            raise
         except Exception as exc:
             raise SheetsClientError(
                 f"Failed to initialize Sheets client: {exc}"

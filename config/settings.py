@@ -28,15 +28,18 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.0-flash"
 
     # --- Google Sheets ---
-    google_service_account_file: str
+    google_service_account_file: str = ""
+    google_service_account_json: str = ""
     google_spreadsheet_id: str = ""
 
     # --- Logging ---
     log_level: str = "INFO"
 
     @property
-    def service_account_path(self) -> Path:
+    def service_account_path(self) -> Path | None:
         """Resolve the service account file path relative to project root."""
+        if not self.google_service_account_file:
+            return None
         raw = Path(self.google_service_account_file)
         if raw.is_absolute():
             return raw
