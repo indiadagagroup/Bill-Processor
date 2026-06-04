@@ -89,6 +89,33 @@ def get_confidence_thresholds() -> dict[str, int]:
     return get_schema_config()["confidence"]
 
 
+def get_disambiguation(entry_type_key: str) -> str:
+    """Return the disambiguation guidance for a specific entry type.
+
+    Returns empty string if no disambiguation is defined.
+    """
+    config = get_entry_type_config(entry_type_key)
+    return config.get("disambiguation", "")
+
+
+def get_document_purpose(entry_type_key: str) -> str:
+    """Return the document purpose for a specific entry type.
+
+    Returns empty string if no document_purpose is defined.
+    """
+    config = get_entry_type_config(entry_type_key)
+    return config.get("document_purpose", "")
+
+
+def get_glossary() -> list[dict[str, str]]:
+    """Return the textile industry glossary entries.
+
+    Each entry has 'term' and 'meaning' keys.
+    Returns empty list if no glossary is defined.
+    """
+    return get_schema_config().get("glossary", [])
+
+
 def build_extraction_field_list(entry_type_key: str) -> list[dict[str, str]]:
     """Build a combined field list for the Gemini extraction prompt.
 
@@ -105,4 +132,19 @@ def build_extraction_field_list(entry_type_key: str) -> list[dict[str, str]]:
     for col in get_entry_type_config(entry_type_key)["specific_columns"]:
         fields.append({"name": col["name"], "description": col["description"]})
 
+    return fields
+
+
+def build_specific_field_list(entry_type_key: str) -> list[dict[str, str]]:
+    """Build only the entry-type-specific field list for a type-specific extraction prompt.
+
+    Returns specific fields with name, description, and required status.
+    """
+    fields: list[dict[str, str]] = []
+    for col in get_entry_type_config(entry_type_key)["specific_columns"]:
+        fields.append({
+            "name": col["name"],
+            "description": col["description"],
+            "required": str(col.get("required", False)),
+        })
     return fields

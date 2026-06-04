@@ -51,11 +51,43 @@ confidence:
   # Below medium_threshold = Low
 
 # -----------------------------------------------------------------------------
+# Textile Industry Glossary
+# -----------------------------------------------------------------------------
+# Included in the Gemini prompt to help with word sense disambiguation.
+# Words in the textile industry often have specific meanings.
+# -----------------------------------------------------------------------------
+
+glossary:
+  - term: "finish / finished"
+    meaning: "Fabric that has been processed (dyed, printed, etc.) — NOT 'completed'"
+  - term: "Bill On: FINISH"
+    meaning: "Billing is calculated on finished weight — it is a BILLING METHOD, not a document type"
+  - term: "Fin Kgs"
+    meaning: "Finished kilograms (weight after processing) — appears on ALL processing bills"
+  - term: "grey / gray"
+    meaning: "Raw, unprocessed, undyed fabric"
+  - term: "lot"
+    meaning: "A batch of fabric/yarn with specific characteristics"
+  - term: "taka / thaan"
+    meaning: "Roll of fabric"
+  - term: "challan"
+    meaning: "Delivery note / goods dispatch document"
+  - term: "job work"
+    meaning: "Outsourced processing work done on someone else's material"
+  - term: "GRN"
+    meaning: "Goods Receipt Note — document confirming receipt of goods"
+  - term: "merge"
+    meaning: "Combined lot of fabric from different sources"
+
+# -----------------------------------------------------------------------------
 # Entry Type Definitions
 # -----------------------------------------------------------------------------
 # Each entry type has:
 #   - display_name:       Human-readable name (used in Telegram confirmation)
 #   - sheet_name:         Google Sheet worksheet name
+#   - description:        What this entry type represents
+#   - document_purpose:   The business purpose (purchase / job_work_charge / goods_receipt / ledger / general)
+#   - disambiguation:     Rules for when this type might be confused with another
 #   - keywords:           Hints for the LLM classifier
 #   - specific_columns:   Columns unique to this entry type
 # -----------------------------------------------------------------------------
@@ -64,6 +96,14 @@ entry_types:
   grey_purchase:
     display_name: "Grey Purchase"
     sheet_name: "Grey_Purchase_Bills"
+    description: "Purchase invoices for BUYING raw/grey (unprocessed, undyed) fabric from a supplier."
+    document_purpose: "purchase"
+    disambiguation: >
+      Use this ONLY for invoices where we are BUYING raw/grey fabric.
+      The fabric has NOT been dyed, printed, or processed — it is in its raw state.
+      Key indicators: fabric described as 'grey', 'raw', unprocessed.
+      Do NOT use for job work bills even if grey fabric is mentioned in the context
+      of sending fabric for processing.
     keywords:
       - "grey"
       - "grey fabric"
@@ -116,6 +156,12 @@ entry_types:
   yarn_purchase:
     display_name: "Yarn Purchase"
     sheet_name: "Yarn_Purchase_Bills"
+    description: "Purchase invoices for BUYING yarn from a supplier."
+    document_purpose: "purchase"
+    disambiguation: >
+      Use this ONLY for invoices where we are BUYING yarn.
+      Key indicators: yarn count mentioned (e.g., 30s, 40s), yarn type (combed/carded),
+      quantity in KG, HSN codes in the 5200-5500 range.
     keywords:
       - "yarn"
       - "yarn purchase"
@@ -150,17 +196,23 @@ entry_types:
   finish_purchase:
     display_name: "Finish Purchase"
     sheet_name: "Finish_Purchase_Bills"
-    description: "Use for invoices, bills, AND internal ERP issue/transfer documents related to fabric processing. Includes job work charge bills, stock transfer issues, and process charge invoices."
+    description: "Purchase invoices for BUYING finished/processed fabric as a product from a supplier. The document is a SALE from the supplier TO our company."
+    document_purpose: "purchase"
+    disambiguation: >
+      Use this ONLY for invoices where we are BUYING finished (already processed/dyed) fabric.
+      This is a PURCHASE transaction — we are paying for finished goods.
+      Do NOT use this for job work charge bills — those belong to grn_job.
+      Do NOT use this for stock transfers or issue documents.
+      CRITICAL: The word 'finish' in 'Bill On: FINISH' or 'Fin Kgs' does NOT indicate
+      this type — those refer to billing method and finished weight, which appear on
+      ALL dyeing/processing bills including job work bills.
+      The key difference: in finish_purchase we are BUYING a product, in grn_job a
+      processor is CHARGING US for work done on our own fabric.
     keywords:
-      - "finish"
+      - "finish purchase"
       - "finished goods"
-      - "job work charges"
-      - "process charges"
-      - "dyeing charges"
-      - "knitting charges"
-      - "stock transfer"
-      - "issue manager"
-      - "issue for process"
+      - "finished fabric"
+      - "processed fabric purchase"
     specific_columns:
       - name: "Process Type"
         description: "Type of process (Dyeing, Knitting, Printing, etc.)"
@@ -206,8 +258,30 @@ entry_types:
   grn_job:
     display_name: "GRN Entry - Job"
     sheet_name: "GRN_Job_Entries"
-    description: "Use ONLY for documents showing goods being RECEIVED BACK from a job worker or processor. NOT for issuing goods or stock transfers."
+    description: "Tax invoices or challans from job workers/processors charging for work done on OUR fabric. The supplier did dyeing/knitting/printing work on fabric we sent them."
+    document_purpose: "job_work_charge"
+    disambiguation: >
+      Use this for ANY bill where a processor, dyeing mill, knitting mill, or printing
+      mill is charging us for work done on OUR material.
+      Key indicators:
+      - 'JOB WORK' in the document title or header
+      - HSN 998821 or 9988xx (HSN codes for job work services)
+      - Separate 'Grey Value' and 'Job Value' fields
+      - 'Grey Kgs' vs 'Fin Kgs' columns showing weight before and after processing
+      - Bill from a dyeing/printing/knitting mill
+      CRITICAL: Even if the bill says 'TAX INVOICE' — if it is from a processing mill
+      charging for dyeing/printing/knitting work, it IS grn_job, not finish_purchase.
+      The word 'finish' in 'Bill On: FINISH' or 'Fin Kgs' means billing method and
+      finished weight — it does NOT make this a finish_purchase.
     keywords:
+      - "job work"
+      - "job work charges"
+      - "HSN 998821"
+      - "HSN 9988"
+      - "dyeing charges"
+      - "knitting charges"
+      - "printing charges"
+      - "process charges"
       - "delivery challan"
       - "goods receipt note"
       - "inward challan"
@@ -236,7 +310,13 @@ entry_types:
   grn_process:
     display_name: "GRN Entry - Process"
     sheet_name: "GRN_Process_Entries"
-    description: "Use ONLY for documents showing processed goods being RECEIVED BACK from a processor. NOT for issuing goods, stock transfers, or purchase invoices."
+    description: "Documents showing processed goods being RECEIVED BACK from a processor, typically a delivery challan or goods receipt note."
+    document_purpose: "goods_receipt"
+    disambiguation: >
+      Use ONLY for documents showing processed goods being RECEIVED BACK from a processor.
+      This is typically a delivery challan or receipt note, NOT a tax invoice for charges.
+      If the document is a TAX INVOICE charging for processing work, use grn_job instead.
+      Key difference from grn_job: this documents the RECEIPT of goods, not the CHARGES.
     keywords:
       - "process receipt"
       - "process challan"
@@ -268,11 +348,18 @@ entry_types:
   grn_process_rf:
     display_name: "GRN Entry - Process RF"
     sheet_name: "GRN_ProcessRF_Entries"
+    description: "Goods received from a refinishing or reprocessing operation."
+    document_purpose: "goods_receipt"
+    disambiguation: >
+      Use this specifically for goods received from a REFINISHING or REPROCESSING operation.
+      The goods were previously processed and are being processed again (re-finished).
+      If this is the first processing, use grn_process or grn_job instead.
     keywords:
-      - "grn"
       - "process rf"
       - "refinish"
       - "reprocess"
+      - "re-finish"
+      - "re-process"
     specific_columns:
       - name: "Receipt Id"
         description: "GRN receipt reference"
@@ -296,11 +383,18 @@ entry_types:
   grn_sewing:
     display_name: "GRN Entry - Sewing"
     sheet_name: "GRN_Sewing_Entries"
+    description: "Goods received from a sewing or stitching unit — typically finished garments."
+    document_purpose: "goods_receipt"
+    disambiguation: >
+      Use this for goods received from a SEWING or STITCHING unit.
+      Key indicators: style numbers, cut numbers, garment descriptions.
+      If the document is about fabric processing (dyeing/printing), use grn_job or grn_process.
     keywords:
-      - "grn"
       - "sewing"
       - "stitching"
       - "garment"
+      - "sewing challan"
+      - "cut number"
     specific_columns:
       - name: "Style Number"
         description: "Style or design reference"
@@ -327,6 +421,12 @@ entry_types:
   ledger_outstanding:
     display_name: "Ledger & Outstanding"
     sheet_name: "Ledger_Outstanding"
+    description: "Party ledger pages and outstanding balance statements."
+    document_purpose: "ledger"
+    disambiguation: >
+      Use this for ledger pages, account statements, and outstanding balance reports.
+      These are NOT invoices or bills — they show account history and balances.
+      Key indicators: opening/closing balance, debit/credit columns, account statement header.
     keywords:
       - "ledger"
       - "outstanding"
@@ -359,6 +459,11 @@ entry_types:
   general_entry:
     display_name: "General Entry"
     sheet_name: "General_Entries"
+    description: "Fallback for documents that do not fit any other entry type."
+    document_purpose: "general"
+    disambiguation: >
+      Use this ONLY as a last resort when the document does not clearly fit any other type.
+      Try to classify into a more specific type first.
     keywords:
       - "general"
       - "miscellaneous"

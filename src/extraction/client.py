@@ -27,6 +27,19 @@ _RETRYABLE_ERRORS = (
     TimeoutError,
 )
 
+# System instruction that primes Gemini as a textile industry expert.
+# This improves classification and extraction accuracy significantly.
+_SYSTEM_INSTRUCTION = (
+    "You are an expert Indian textile industry accountant with deep knowledge of "
+    "GST invoices, job work challans, purchase bills, and GRN documents. "
+    "You process hundreds of textile industry documents daily. "
+    "You understand the difference between buying fabric (purchase), "
+    "sending fabric for processing (job work), and receiving processed goods (GRN). "
+    "You are meticulous about identifying who is the seller vs buyer on any invoice — "
+    "the seller is ALWAYS the company in the letterhead/logo, and the buyer is the "
+    "entity in the 'To:' or 'Bill To:' section."
+)
+
 
 class GeminiClientError(Exception):
     """Raised when Gemini API calls fail after all retries."""
@@ -51,7 +64,10 @@ class GeminiClient:
             base_delay: Base delay in seconds for exponential backoff.
         """
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(model_name)
+        self._model = genai.GenerativeModel(
+            model_name,
+            system_instruction=_SYSTEM_INSTRUCTION,
+        )
         self._max_retries = max_retries
         self._base_delay = base_delay
         logger.info("GeminiClient initialized with model '%s'", model_name)
@@ -61,6 +77,7 @@ class GeminiClient:
         image_bytes: bytes,
         prompt: str,
         mime_type: str = "image/jpeg",
+        response_schema: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send an image + prompt to Gemini and return the structured JSON response.
 
@@ -68,6 +85,10 @@ class GeminiClient:
             image_bytes: Raw bytes of the bill image.
             prompt: The extraction prompt (built by prompts.py).
             mime_type: MIME type of the image.
+            response_schema: Optional JSON schema dict to enforce structured output.
+                When provided, Gemini is constrained at the token-generation level
+                to only produce output matching this schema. This is much stronger
+                than just requesting JSON format.
 
         Returns:
             Parsed JSON dict from Gemini's response.
@@ -80,6 +101,14 @@ class GeminiClient:
             "data": image_bytes,
         }
 
+        # Build generation config — with or without schema enforcement
+        gen_config_kwargs: dict[str, Any] = {
+            "response_mime_type": "application/json",
+            "temperature": 0.1,  # Low temperature for factual extraction
+        }
+        if response_schema is not None:
+            gen_config_kwargs["response_schema"] = response_schema
+
         last_error: Exception | None = None
 
         for attempt in range(1, self._max_retries + 1):
@@ -88,10 +117,7 @@ class GeminiClient:
 
                 response = self._model.generate_content(
                     [prompt, image_part],
-                    generation_config=genai.GenerationConfig(
-                        response_mime_type="application/json",
-                        temperature=0.1,  # Low temperature for factual extraction
-                    ),
+                    generation_config=genai.GenerationConfig(**gen_config_kwargs),
                 )
 
                 # Parse the JSON response
