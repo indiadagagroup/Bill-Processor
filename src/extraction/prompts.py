@@ -198,7 +198,7 @@ def build_extraction_prompt(entry_type: str, supplier_name: str = "") -> str:
     field_lines: list[str] = []
     for f in fields:
         required_tag = " (REQUIRED)" if f.get("required", "False") == "True" else ""
-        field_lines.append(f'  - "{f["name"]}": {f["description"]}{required_tag}')
+        field_lines.append(f'  - "{f["safe_name"]}": {f["description"]}{required_tag}')
 
     fields_block = "\n".join(field_lines)
 

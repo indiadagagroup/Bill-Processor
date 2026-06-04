@@ -111,15 +111,15 @@ def build_extraction_schema(entry_type_key: str) -> dict[str, Any]:
     Returns:
         A dict in the format expected by ``genai.GenerationConfig(response_schema=...)``.
     """
-    config = get_entry_type_config(entry_type_key)
-    specific_columns = config.get("specific_columns", [])
+    from src.models.schema_loader import build_specific_field_list
+    fields = build_specific_field_list(entry_type_key)
 
-    # Build properties for each specific field
+    # Build properties for each specific field using safe OpenAPI keys
     specific_properties: dict[str, Any] = {}
-    for col in specific_columns:
-        specific_properties[col["name"]] = {
+    for f in fields:
+        specific_properties[f["safe_name"]] = {
             "type": "STRING",
-            "description": col.get("description", ""),
+            "description": f["description"],
         }
 
     return {

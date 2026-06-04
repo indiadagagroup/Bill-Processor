@@ -242,15 +242,25 @@ class BillExtractor:
         )
 
         # Extract specific_fields from the response
-        specific_fields = result.get("specific_fields", {})
+        raw_specific_fields = result.get("specific_fields", {})
 
         # If result came back flat (no specific_fields wrapper), use the whole dict
-        if not specific_fields and result:
+        if not raw_specific_fields and result:
             # Filter out any metadata keys
-            specific_fields = {
+            raw_specific_fields = {
                 k: v for k, v in result.items()
                 if k != "specific_fields"
             }
+
+        # Map safe keys back to original sheet column names
+        from src.models.schema_loader import build_specific_field_list
+        fields = build_specific_field_list(entry_type)
+        key_map = {f["safe_name"]: f["name"] for f in fields}
+
+        specific_fields = {}
+        for safe_key, value in raw_specific_fields.items():
+            original_name = key_map.get(safe_key, safe_key)
+            specific_fields[original_name] = value
 
         logger.info(
             "Pass 2 — Extracted %d specific fields for type '%s'",

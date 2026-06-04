@@ -13,9 +13,18 @@ from functools import lru_cache
 from typing import Any
 
 import yaml
-
+import re
 
 _SCHEMA_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "schemas.yaml"
+
+
+def _make_safe_key(name: str) -> str:
+    """Convert a column name to an OpenAPI-safe key (alphanumeric and underscores)."""
+    safe = "".join(c if c.isalnum() else "_" for c in name)
+    safe = re.sub(r"_+", "_", safe).strip("_")
+    if not safe or safe[0].isdigit():
+        safe = "f_" + safe
+    return safe
 
 
 def _load_raw_yaml(path: Path | None = None) -> dict[str, Any]:
@@ -138,12 +147,13 @@ def build_extraction_field_list(entry_type_key: str) -> list[dict[str, str]]:
 def build_specific_field_list(entry_type_key: str) -> list[dict[str, str]]:
     """Build only the entry-type-specific field list for a type-specific extraction prompt.
 
-    Returns specific fields with name, description, and required status.
+    Returns specific fields with name, safe_name (for OpenAPI), description, and required status.
     """
     fields: list[dict[str, str]] = []
     for col in get_entry_type_config(entry_type_key)["specific_columns"]:
         fields.append({
             "name": col["name"],
+            "safe_name": _make_safe_key(col["name"]),
             "description": col["description"],
             "required": str(col.get("required", False)),
         })
