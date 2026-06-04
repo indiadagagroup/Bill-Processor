@@ -225,7 +225,8 @@ This document has been classified as: **{entry_type}**
 4. For amounts: extract exactly as printed, do not recalculate
 5. For quantities: extract the exact value shown
 6. For handwritten documents: do your best to read the handwriting
-7. Return the values in the "specific_fields" object using the exact field names above
+7. If a field appears multiple times across line items, extract it ONCE only — do NOT concatenate duplicates or list multiple values
+8. Return the values in the "specific_fields" object using the exact field names above
 """
 
     return prompt
